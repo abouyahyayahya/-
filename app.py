@@ -189,19 +189,27 @@ def user_by_email(conn, email):
     if r:
         return {"id": r[0], "full_name": r[1], "email": r[2], "role": r[3], "password_hash": r[4]}
     return None
-
 # --------------- تسجيل الدخول ---------------
 def login_any(conn):
     st.subheader("تسجيل الدخول")
     email = st.text_input("البريد الإلكتروني", key="login_email")
     password = st.text_input("كلمة المرور", type="password", key="login_password")
 
-    # تشغيل تلاوة القرآن (خفية) فور البدء بإدخال كلمة المرور
-    if password:
-        st.components.v1.html(f"""
-        <iframe width="0" height="0" src="{QURAN_YT}" frameborder="0"
-            allow="autoplay" allowfullscreen style="display:none"></iframe>
-        """, height=0)
+    # تشغيل تلاوة "صامتة" بمجرد وجود تفاعل (كتابة كلمة المرور) - يساعد على السماح بالصوت لاحقًا
+    if password and not st.session_state.get("quran_muted_started"):
+        st.components.v1.html(
+            f'<iframe width="0" height="0" src="{QURAN_YT}" frameborder="0" allow="autoplay" style="display:none"></iframe>',
+            height=0
+        )
+        st.session_state["quran_muted_started"] = True
+
+    # زر اختياري لتشغيل التلاوة بالصوت (بعض المتصفحات تمنع الصوت تلقائيًا)
+    if st.button("▶️ تشغيل التلاوة بالصوت", key="play_quran_btn"):
+        src_unmuted = QURAN_YT.replace("mute=1", "mute=0")
+        st.components.v1.html(
+            f'<iframe width="0" height="0" src="{src_unmuted}" frameborder="0" allow="autoplay" style="display:none"></iframe>',
+            height=0
+        )
 
     if st.button("دخول", type="primary", key="login_button"):
         # 1) مستخدم (معلم/مدير)
@@ -209,23 +217,35 @@ def login_any(conn):
         if u:
             if u["role"] == "admin":
                 if bcrypt.verify(password, u["password_hash"]):
-                    return {"kind":"user", **{k: u[k] for k in ("id","full_name","email","role")}}
+                    return {"kind": "user", **{k: u[k] for k in ("id","full_name","email","role")}}
             else:  # teacher
+                # قبول المرور الموحّد أو الخاص
                 if password == UNIFIED_PASSWORD or bcrypt.verify(password, u["password_hash"]):
-                    return {"kind":"user", **{k: u[k] for k in ("id","full_name","email","role")}}
+                    return {"kind": "user", **{k: u[k] for k in ("id","full_name","email","role")}}
+
         # 2) طالب
         with closing(conn.cursor()) as cur:
-            cur.execute("""SELECT sa.id, sa.student_id, s.full_name, sa.email, sa.password_hash
-                           FROM student_accounts sa JOIN students s ON s.id=sa.student_id
-                           WHERE sa.email=?""", (email,))
-            s = cur.fetchone()
-        if s:
-            if password == UNIFIED_PASSWORD or bcrypt.verify(password, s[4]):
-                return {"kind":"student","account_id":s[0],"student_id":s[1],
-                        "full_name":s[2],"email":s[3],"role":"student"}
+            cur.execute("""
+                SELECT sa.id, sa.student_id, s.full_name, sa.email, sa.password_hash
+                FROM student_accounts sa
+                JOIN students s ON s.id = sa.student_id
+                WHERE sa.email = ?
+            """, (email.strip(),))
+            srow = cur.fetchone()
+
+        if srow:
+            if password == UNIFIED_PASSWORD or bcrypt.verify(password, srow[4]):
+                return {
+                    "kind": "student",
+                    "account_id": srow[0],
+                    "student_id": srow[1],
+                    "full_name": srow[2],
+                    "email": srow[3],
+                    "role": "student",
+                }
+
         st.error("بيانات الدخول غير صحيحة")
     return None
-
 # --------------- تقييم نوعي ---------------
 def qualitative_label(score, class_avg=None, class_std=None):
     if class_avg is not None and class_std is not None and class_std > 0:
