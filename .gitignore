@@ -1,12 +1,7 @@
-# عام
+# ???
 .env
 *.log
 .DS_Store
-
-# Node.js
-node_modules/
-dist/
-build/
 
 # Python
 __pycache__/
@@ -14,7 +9,12 @@ __pycache__/
 .venv/
 env/
 
-# Frontend شائع
+# Node.js (?? ???)
+node_modules/
+dist/
+build/
+
+# Frontend ????
 .cache/
 .next/
 out/
