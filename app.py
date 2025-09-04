@@ -475,26 +475,21 @@ def teacher_daily_panel(conn, user):
                         (int(sid), int(subid), int(user["id"]), gdate.isoformat(), float(score), note, note, note_p, note_a))
             conn.commit()
 
-        # حساب متوسط/انحراف الصف لهذا التاريخ والمادة
-        cls = selected_class
-        stats = pd.read_sql_query("""
-            SELECT AVG(g.score) AS avg_s, printf('%.6f', sqrt(AVG((g.score - (SELECT AVG(score) FROM grades gg 
-            JOIN students ss ON ss.id=gg.student_id
-            WHERE ss.class_name=? AND gg.subject_id=? AND gg.grade_date=?))*(g.score - (SELECT AVG(score) FROM grades gg 
-            JOIN students ss ON ss.id=gg.student_id
-            WHERE ss.class_name=? AND gg.subject_id=? AND gg.grade_date=?)))) AS std_s
-            FROM grades g JOIN students s ON s.id=g.student_id
-            WHERE s.class_name=? AND g.subject_id=? AND g.grade_date=?
-        """, conn, params=[cls,int(subid),gdate.isoformat(), cls,int(subid),gdate.isoformat(), cls,int(subid),gdate.isoformat()])
-        avg_v = None; std_v = None
-        if not stats.empty and stats.iloc[0,0] is not None:
-            try:
-                avg_v = float(stats.iloc[0,0])
-                std_v = float(stats.iloc[0,1]) if stats.iloc[0,1] is not None else None
-            except Exception:
-                pass
+       # حساب متوسط/انحراف الصف لهذا التاريخ والمادة - بايثون بدل SQL
+import statistics as stats
 
-        qlabel = qualitative_label(float(score), avg_v, std_v)
+cls = selected_class
+scores_q = """
+SELECT g.score
+FROM grades g JOIN students s ON s.id=g.student_id
+WHERE s.class_name=? AND g.subject_id=? AND g.grade_date=?
+"""
+scores_df = pd.read_sql_query(scores_q, conn, params=[cls, int(subid), gdate.isoformat()])
+scores = scores_df["score"].tolist()
+
+avg_v = stats.mean(scores) if scores else None
+std_v = stats.pstdev(scores) if len(scores) > 1 else None  # انحراف معياري سكاني
+qlabel = qualitative_label(float(score), avg_v, std_v)
 
         # إظهار السطر فورًا
         sname = class_students.set_index('id').loc[int(sid),'full_name']
