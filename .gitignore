@@ -18,3 +18,20 @@ build/
 .cache/
 .next/
 out/
+# Python tooling
+.pytest_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Editors
+.vscode/
+.idea/
+
+# Databases / artifacts
+*.sqlite3
+*.db
+
+# Streamlit secrets (ما تتكومِتش أبدًا)
+.streamlit/secrets.toml
