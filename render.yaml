@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: darien-class-grades
+    env: python
+    plan: free
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: streamlit run app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true
+    autoDeploy: true
+    envVars:
+      - key: DARIEN_UNIFIED_PASSWORD
+        value: "123456"
+      - key: GRADES_DB_PATH
+        value: "/var/data/grades.db"
+    disk:
+      name: data
+      mountPath: /var/data
+      sizeGB: 1
